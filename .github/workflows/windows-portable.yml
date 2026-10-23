@@ -19,14 +19,6 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Regression tests failed' }
           dotnet build src-cli/CodeWalkerCLI/CodeWalkerCLI.csproj --configuration Release -restore
           if ($LASTEXITCODE -ne 0) { throw 'CLI build failed' }
-      - name: Prepare Windows icon
-        shell: pwsh
-        run: |
-          # The source repository contains a one-byte placeholder icon.
-          Add-Type -AssemblyName System.Drawing
-          $iconFile = [IO.File]::Create((Join-Path $PWD 'src-tauri/icons/icon.ico'))
-          try { [Drawing.SystemIcons]::Application.Save($iconFile) }
-          finally { $iconFile.Dispose() }
       - name: Use fork update source
         shell: pwsh
         run: |

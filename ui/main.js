@@ -64,7 +64,7 @@ const finishCmdQ2=document.getElementById('finishCmdQ2')
 const runningSection=document.getElementById('runningSection')
 const finishedSection=document.getElementById('finishedSection')
 
-const LOCAL_VERSION='v1.0.0'
+const LOCAL_VERSION='v1.0.1-atmus'
 const GH_OWNER='nofxap'
 const GH_REPO='5MAssetsRenamer'
 let remoteVersion=null
