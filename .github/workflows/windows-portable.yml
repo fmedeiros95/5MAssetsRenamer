@@ -27,6 +27,13 @@ jobs:
           $iconFile = [IO.File]::Create((Join-Path $PWD 'src-tauri/icons/icon.ico'))
           try { [Drawing.SystemIcons]::Application.Save($iconFile) }
           finally { $iconFile.Dispose() }
+      - name: Use fork update source
+        shell: pwsh
+        run: |
+          # Keep the upstream updater from replacing the locally fixed backend.
+          $uiPath = Join-Path $PWD 'ui/main.js'
+          $ui = [IO.File]::ReadAllText($uiPath).Replace("const GH_OWNER='nofxap'", "const GH_OWNER='fmedeiros95'")
+          [IO.File]::WriteAllText($uiPath, $ui)
       - name: Build portable interface
         working-directory: src-tauri
         run: cargo build --release --locked --features tauri/custom-protocol
