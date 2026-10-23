@@ -1,0 +1,47 @@
+name: Build Windows portable
+
+on:
+  push:
+    branches: [codex/build-windows-portable]
+
+jobs:
+  portable:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build and test backend
+        shell: pwsh
+        run: |
+          dotnet run --project tests/UvClipHashTests/UvClipHashTests.csproj --configuration Release
+          if ($LASTEXITCODE -ne 0) { throw 'Regression tests failed' }
+          dotnet build src-cli/CodeWalkerCLI/CodeWalkerCLI.csproj --configuration Release -restore
+          if ($LASTEXITCODE -ne 0) { throw 'CLI build failed' }
+      - name: Prepare Windows icon
+        shell: pwsh
+        run: |
+          # The source repository contains a one-byte placeholder icon.
+          Add-Type -AssemblyName System.Drawing
+          $iconFile = [IO.File]::Create((Join-Path $PWD 'src-tauri/icons/icon.ico'))
+          try { [Drawing.SystemIcons]::Application.Save($iconFile) }
+          finally { $iconFile.Dispose() }
+      - name: Build portable interface
+        working-directory: src-tauri
+        run: cargo build --release --locked --features tauri/custom-protocol
+      - name: Package application
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path package/cli -Force | Out-Null
+          Copy-Item src-tauri/target/release/assets-renamer.exe package/5MAssetsRenamer.exe
+          Copy-Item src-cli/CodeWalkerCLI/bin/Release/CodeWalkerCLI.exe* package/cli/
+          Copy-Item src-cli/CodeWalkerCLI/bin/Release/CodeWalker.Core.dll package/cli/
+          Copy-Item src-cli/CodeWalkerCLI/bin/Release/strings.txt package/cli/
+          Copy-Item src-cli/CodeWalkerCLI/bin/Release/ShadersGen9Conversion.xml package/cli/
+          Copy-Item "$env:USERPROFILE/.nuget/packages/sharpdx/4.2.0/lib/net45/SharpDX.dll" package/cli/
+          Copy-Item "$env:USERPROFILE/.nuget/packages/sharpdx.mathematics/4.2.0/lib/net45/SharpDX.Mathematics.dll" package/cli/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: 5MAssetsRenamer-windows-portable
+          path: package/
