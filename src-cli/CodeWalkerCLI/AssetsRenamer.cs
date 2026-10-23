@@ -354,6 +354,7 @@ namespace CodeWalkerCLI
             metadataFiles.AddRange(Directory.GetFiles(basePath, "*.ymap", SearchOption.AllDirectories));
             metadataFiles.AddRange(Directory.GetFiles(basePath, "*.ymf", SearchOption.AllDirectories));
             metadataFiles.AddRange(Directory.GetFiles(basePath, "*.ycd", SearchOption.AllDirectories));
+            metadataFiles.AddRange(Directory.GetFiles(basePath, "*.ydr", SearchOption.AllDirectories));
 
             int total = metadataFiles.Count;
             int current = 0;
@@ -398,6 +399,12 @@ namespace CodeWalkerCLI
 
         private void ProcessMetadataFile(string binaryPath, string fileType)
         {
+            if (fileType == "ydr")
+            {
+                ProcessDrawableName(binaryPath);
+                return;
+            }
+
             var xmlPath = binaryPath + ".xml";
 
             try
@@ -475,6 +482,33 @@ namespace CodeWalkerCLI
                 LogError($"{fileType.ToUpper()}: {Path.GetFileName(binaryPath)} - {ex.Message}");
                 if (_options.Debug)
                     DebugLog($"  {ex.StackTrace}", ConsoleColor.Red);
+            }
+        }
+
+        private void ProcessDrawableName(string path)
+        {
+            try
+            {
+                var model = new YdrFile();
+                model.Load(File.ReadAllBytes(path));
+                var oldName = model.Drawable?.Name;
+                if (string.IsNullOrEmpty(oldName)) return;
+                var newName = ApplyAllRenameMappings(oldName);
+                if (oldName == newName) return;
+
+                // Keep the loaded drawable and its embedded texture data intact.
+                // An XML round trip without DDS sidecars would discard pixels.
+                model.Drawable.Name = newName;
+                byte[] renamed = model.Save();
+                File.WriteAllBytes(path, renamed);
+                RegisterString(newName);
+                _processedFiles.Add(path);
+                _result.ReplacedStrings++;
+                Log($"YDR: {Path.GetFileName(path)} - Internal name updated", ConsoleColor.Green);
+            }
+            catch (Exception ex)
+            {
+                LogError($"YDR: {Path.GetFileName(path)} - {ex.Message}");
             }
         }
 

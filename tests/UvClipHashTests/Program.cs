@@ -98,13 +98,26 @@ internal static class UvClipHashTests
         Directory.CreateDirectory(directory);
         try
         {
+            byte[] pixels = { 1, 2, 3, 4, 5, 6, 7, 8 };
+            var textures = new TextureDictionary();
+            textures.BuildFromTextureList(new System.Collections.Generic.List<Texture>
+            {
+                new Texture
+                {
+                    Name = "shared_texture", Width = 4, Height = 4, Depth = 1,
+                    Levels = 1, Stride = 2, Format = TextureFormat.D3DFMT_DXT1,
+                    Data = new TextureData { FullData = pixels }
+                }
+            });
             var model = new YdrFile
             {
                 Drawable = new Drawable
                 {
+                    Name = "old_panel",
                     LightAttributes = new ResourceSimpleList64<LightAttributes>(),
                     ShaderGroup = new ShaderGroup
                     {
+                        TextureDictionary = textures,
                         Shaders = new ResourcePointerArray64<ShaderFX>
                         {
                             data_items = Enumerable.Range(0, 4).Select(_ => new ShaderFX()).ToArray()
@@ -125,6 +138,14 @@ internal static class UvClipHashTests
             var result = new AssetsRenamer(options).Execute();
             Assert(result.Success && result.Errors == 0, mode + ": pipeline errors");
             Assert(File.Exists(Path.Combine(directory, newName + ".ydr")), mode + ": renamed model missing");
+            var renamedModel = new YdrFile();
+            renamedModel.Load(File.ReadAllBytes(Path.Combine(directory, newName + ".ydr")));
+            Assert(renamedModel.Drawable.Name == newName, mode + ": internal drawable name must match renamed model");
+            Assert(renamedModel.Drawable.ShaderGroup.Shaders.data_items.Length == 4,
+                mode + ": shader table must survive drawable rename");
+            var texture = renamedModel.Drawable.ShaderGroup.TextureDictionary.Textures.data_items.Single();
+            Assert(texture.Name == "shared_texture" && texture.Data.FullData.SequenceEqual(pixels),
+                mode + ": embedded texture name and pixels must survive drawable rename");
             var output = new YcdFile();
             RpfFile.LoadResourceFile(output, File.ReadAllBytes(Path.Combine(directory, "shared.ycd")), 46);
             output.InitDictionaries();
